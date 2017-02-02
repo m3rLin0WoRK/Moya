@@ -30,16 +30,7 @@ class ViewController: UITableViewController {
         provider.request(MultiTarget(GitHub.userRepositories(username))) { result in
             switch result {
             case let .success(response):
-                do {
-                    if let json = try response.mapJSON() as? NSArray {
-                        // Presumably, you'd parse the JSON into a model object. This is just a demo, so we'll keep it as-is.
-                        self.repos = json
-                    } else {
-                        self.showAlert("GitHub Fetch", message: "Unable to fetch from GitHub")
-                    }
-                } catch {
-                    self.showAlert("GitHub Fetch", message: "Unable to fetch from GitHub")
-                }
+                self.repos = json
                 self.tableView.reloadData()
             case let .failure(error):
                 guard let error = error as? CustomStringConvertible else {
@@ -49,16 +40,15 @@ class ViewController: UITableViewController {
             }
         }
     }
-    
+        
     func downloadZen() {
         provider.request(MultiTarget(GitHub.zen)) { result in
-            var message = "Couldn't access API"
-            if case let .success(response) = result {
-                let jsonString = try? response.mapString()
-                message = jsonString ?? message
+            switch result {
+            case let .success(zen):
+                self.showAlert("Zen", message: zen)
+            case .failure(_):
+                self.showAlert("Zen", message: "Couldn't access API")
             }
-            
-            self.showAlert("Zen", message: message)
         }
     }
     

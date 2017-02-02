@@ -24,20 +24,10 @@ class ViewController: UITableViewController {
     
     // MARK: - API Stuff
 
-    func downloadRepositories(_ username: String) {
-         GitHubProvider.request(.userRepositories(username)) { result in
+    func downloadRepositories(_ username: String) {        GitHubProvider.requestWithCompletion(for: .userRepositories(username, { result in
             switch result {
-            case let .success(response):
-                do {
-                    if let json = try response.mapJSON() as? NSArray {
-                        // Presumably, you'd parse the JSON into a model object. This is just a demo, so we'll keep it as-is.
-                        self.repos = json
-                    } else {
-                        self.showAlert("GitHub Fetch", message: "Unable to fetch from GitHub")
-                    }
-                } catch {
-                    self.showAlert("GitHub Fetch", message: "Unable to fetch from GitHub")
-                }
+            case let .success(repos):
+                self.repos = repos
                 self.tableView.reloadData()
             case let .failure(error):
                 guard let error = error as? CustomStringConvertible else {
@@ -45,19 +35,18 @@ class ViewController: UITableViewController {
                 }
                 self.showAlert("GitHub Fetch", message: error.description)
             }
-        }
+        }))
     }
 
     func downloadZen() {
-         GitHubProvider.request(.zen) { result in
-            var message = "Couldn't access API"
-            if case let .success(response) = result {
-                let jsonString = try? response.mapString()
-                message = jsonString ?? message
+        GitHubProvider.requestWithCompletion(for: .zen( { result in
+            switch result {
+            case let .success(zen):
+                self.showAlert("Zen", message: zen)
+            case .failure(_):
+                self.showAlert("Zen", message: "Couldn't access API")
             }
-    
-            self.showAlert("Zen", message: message)
-        }
+        }))
     }
     
     func uploadGiphy() {
