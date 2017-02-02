@@ -111,6 +111,32 @@ open class MoyaProvider<Target: TargetType> {
     }
 }
 
+/**
+ * TargetTypeWithCompletion is stuck here because in the TargetType file the compiler
+ * confuses it with Alamofire's `Result` and complains about number of generic parameters!
+ */
+
+/// Inherits from TargetType and contains its own completion method.
+public protocol TargetTypeWithCompletion : TargetType {
+    
+    /// MoyaProvider will call this if no completion block is provided.
+    func complete(with response: Result<Moya.Response, MoyaError>)
+    
+}
+
+/// This handles the self-completing targets, that should take their completion blocks as associated types
+public extension MoyaProvider where Target : TargetTypeWithCompletion {
+    
+    /// Make a request and then call the target's `complete(with response:)` method.
+    @discardableResult
+    public func requestWithCompletion(for target: Target, queue: DispatchQueue? = nil) -> Cancellable {
+        return self.request(target, queue: queue) { (response) in
+            target.complete(with: response)
+        }
+    }
+}
+
+
 /// Mark: Stubbing
 
 /// Controls how stub responses are returned.
@@ -157,4 +183,18 @@ public func convertResponseToResult(_ response: HTTPURLResponse?, request: URLRe
             let error = MoyaError.underlying(NSError(domain: NSURLErrorDomain, code: NSURLErrorUnknown, userInfo: nil))
             return .failure(error)
         }
+}
+
+public func convertToMoyaCompletion<T>(fromGeneric completion: @escaping (Result<T, MoyaError>) -> Void, with parser: @escaping (Moya.Response) throws -> T) -> (Result<Moya.Response, MoyaError>) -> Void {
+    return { (moyaResult) in
+        do {
+            let response = try moyaResult.dematerialize()
+            let value = try parser(response)
+            completion(Result(value: value))
+        } catch let error as MoyaError {
+            completion(Result<T, MoyaError>(error: error))
+        } catch {
+            completion(Result<T, MoyaError>(error: .underlying(error)))
+        }
+    }
 }
